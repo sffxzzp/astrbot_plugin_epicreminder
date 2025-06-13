@@ -1,9 +1,5 @@
-# helloworld
+# astrbot_plugin_epicreminder
 
-AstrBot 插件模板
+获取当前 Epic 免费游戏
 
-A template plugin for AstrBot plugin feature
-
-# 支持
-
-[帮助文档](https://astrbot.app)
+Get Epic free games for now
