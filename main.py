@@ -25,14 +25,14 @@ class EpicReminder(Star):
                     if response.status == 200:
                         data = await response.text()
                         logger.info("Fetched Epic free games data successfully.")
-                        yield event.plain_result(data)
+                        return event.plain_result(data)
                     else:
                         logger.error(
                             f"Failed to fetch Epic free games data, status: {response.status}"
                         )
-                        yield event.plain_result(
+                        return event.plain_result(
                             "无法获取 Epic 免费游戏数据，请稍后再试。"
                         )
         except Exception as e:
             logger.error(f"Exception occurred while fetching Epic free games data: {e}")
-            yield event.plain_result("获取数据时出现错误，请稍后重试。")
+            return event.plain_result("获取数据时出现错误，请稍后重试。")
