@@ -18,7 +18,7 @@ class EpicReminder(Star):
     @filter.llm_tool("epicfree")
     async def epicfree(self, event: AstrMessageEvent):
         """会列出当前免费的 Epic 游戏，地址由 pipedream 先行抓取，返回纯文本格式"""
-        url = "https://gist.githubusercontent.com/sffxzzp/74bdb34bb28c50340c40f90fdfe394aa/raw"
+        url = "https://epicfree.deno.dev"
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as response:
