@@ -44,37 +44,6 @@ async function getPCGames() {
 	return push;
 }
 
-async function fetchGames(): Promise<string> {
-	const pc = await getPCGames();
-	const android = await getMobileGames('android');
-	const ios = await getMobileGames('ios');
-
-	let result = '';
-
-	if (pc.length > 0) {
-		result += 'PC:\n\n';
-		for (const g of pc) {
-			result += `${g.title}\n${g.url}\n\n`;
-		}
-	}
-
-	if (android.length > 0) {
-		result += 'Android:\n\n';
-		for (const g of android) {
-			result += `${g.title}\n${g.url}\n\n`;
-		}
-	}
-
-	if (ios.length > 0) {
-		result += 'iOS:\n\n';
-		for (const g of ios) {
-			result += `${g.title}\n${g.url}\n\n`;
-		}
-	}
-
-	return result || 'No free games found.';
-}
-
 function getETDate() {
 	const now = new Date();
 	const etStr = now.toLocaleString('en-US', { timeZone: 'America/New_York' });
@@ -82,7 +51,7 @@ function getETDate() {
 }
 
 function needUpdate(et: Date): boolean {
-	return et.getDay() === 4 && et.getHours() >= 11;
+	return et.getDay() === 4 && (et.getHours() > 11 || (et.getHours() === 11 && et.getMinutes() >= 5));
 }
 
 function getWeekNumber(d: Date): string {
@@ -95,37 +64,104 @@ function getWeekNumber(d: Date): string {
 	return `${target.getFullYear()}-W${week}`;
 }
 
+async function clearAllKv(kv: Deno.Kv, prefix: Deno.KvKey = []) {
+	const entries = kv.list({ prefix });
+	for await (const entry of entries) {
+		await kv.delete(entry.key);
+	}
+}
+
+function formatDateET(date: Date): string {
+	const formatter = new Intl.DateTimeFormat('zh-CN', {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: false,
+		timeZone: 'America/New_York',
+	});
+	const parts = formatter.formatToParts(date);
+	// parts 是数组，可以拼接成 YYYY-MM-DD HH:mm:ss 格式
+	const map: Record<string, string> = {};
+	for (const part of parts) {
+		if (part.type !== 'literal') {
+			map[part.type] = part.value;
+		}
+	}
+	return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second}`;
+}
+
+
+function formatDateGMT8(date: Date | number): string {
+	if (typeof date === 'number') date = new Date(date);
+	const pad = (n: number) => n.toString().padStart(2, '0');
+	const utc = date.getTime();
+	const offset = 8 * 60 * 60 * 1000;
+	const dateGMT8 = new Date(utc + offset);
+	return `${dateGMT8.getUTCFullYear()}-${pad(dateGMT8.getUTCMonth() + 1)}-${pad(dateGMT8.getUTCDate())} ${pad(dateGMT8.getUTCHours())}:${pad(dateGMT8.getUTCMinutes())}:${pad(dateGMT8.getUTCSeconds())}`;
+}
+
 Deno.serve(async (_req) => {
 	const kv = await Deno.openKv();
-
 	const nowET = getETDate();
 	const thisWeek = getWeekNumber(nowET);
 
-	const [{ value: cachedData }, { value: lastUpdateWeek }] = await Promise.all([
-		kv.get<string>(['epic', 'free-games', 'latest']),
-		kv.get<string>(['epic', 'free-games', 'last-update-week']),
-	]);
+	const url = new URL(_req.url);
+	const refresh = url.searchParams.get('refresh') === 'true';
 
-	const needInitialFetch = !cachedData;
-	const needWeeklyFetch = needUpdate(nowET) && lastUpdateWeek !== thisWeek;
-
-	if (needInitialFetch || needWeeklyFetch) {
-		console.log('fetching...');
-		const newData = await fetchGames();
-
-		if (newData !== cachedData || needInitialFetch) {
-			await kv.set(['epic', 'free-games', 'latest'], newData);
-			await kv.set(['epic', 'free-games', 'timestamp'], Date.now());
-			await kv.set(['epic', 'free-games', 'last-update-week'], thisWeek);
-		}
-
-		return new Response(newData, {
-			headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-		});
+	if (refresh) {
+		console.log('Refreshing all cache...');
+		await clearAllKv(kv);
 	}
 
-	console.log('using cached data.')
-	return new Response(cachedData ?? 'No cached data available.', {
+	// 读取缓存
+	const [
+		pcCache, androidCache, iosCache,
+		pcWeek, androidWeek, iosWeek,
+		timestamp
+	] = await Promise.all([
+		kv.get<string>(['pc', 'latest']),
+		kv.get<string>(['android', 'latest']),
+		kv.get<string>(['ios', 'latest']),
+		kv.get<string>(['pc', 'last-update-week']),
+		kv.get<string>(['android', 'last-update-week']),
+		kv.get<string>(['ios', 'last-update-week']),
+		kv.get<string>(['timestamp']),
+	]);
+
+	let [pc, android, ios] = [pcCache.value, androidCache.value, iosCache.value];
+
+	if (!pc || refresh || (needUpdate(nowET) && pcWeek.value !== thisWeek)) {
+		const data = await getPCGames();
+		pc = 'PC:\n\n' + data.map(g => `${g.title}\n${g.url}\n`).join('\n');
+		await kv.set(['pc', 'latest'], pc, { expirationTtl: 604800 });
+		await kv.set(['pc', 'last-update-week'], thisWeek, { expirationTtl: 604800 });
+		await kv.set(['timestamp'], new Date().getTime());
+	}
+
+	if (!android || refresh || (needUpdate(nowET) && androidWeek.value !== thisWeek)) {
+		const data = await getMobileGames('android');
+		android = 'Android:\n\n' + data.map(g => `${g.title}\n${g.url}\n`).join('\n');
+		await kv.set(['android', 'latest'], android, { expirationTtl: 604800 });
+		await kv.set(['android', 'last-update-week'], thisWeek, { expirationTtl: 604800 });
+		await kv.set(['timestamp'], new Date().getTime());
+	}
+
+	if (!ios || refresh || (needUpdate(nowET) && iosWeek.value !== thisWeek)) {
+		const data = await getMobileGames('ios');
+		ios = 'iOS:\n\n' + data.map(g => `${g.title}\n${g.url}\n`).join('\n');
+		await kv.set(['ios', 'latest'], ios, { expirationTtl: 604800 });
+		await kv.set(['ios', 'last-update-week'], thisWeek, { expirationTtl: 604800 });
+		await kv.set(['timestamp'], new Date().getTime());
+	}
+
+	const result = [
+		pc, android, ios,
+		timestamp?.value ? `Cache time:\nET: ${formatDateET(timestamp.value)}\nAsia/Shanghai: ${formatDateGMT8(timestamp.value)}` : ''
+	].filter(Boolean).join('\n\n') || 'No free games found.';
+	return new Response(result, {
 		headers: { 'Content-Type': 'text/plain; charset=utf-8' },
 	});
 });
