@@ -8,7 +8,7 @@ import asyncio
     "epicreminder",
     "sffxzzp",
     "用于添加 Epic 免费游戏的提醒函数，可被其他定时插件调用，定时提醒功能开发中。",
-    "0.5",
+    "0.6",
 )
 class EpicReminder(Star):
     def __init__(self, context: Context):
@@ -31,7 +31,7 @@ class EpicReminder(Star):
         url = "https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions"
         data = await self.fetch(url)
         for item in data['data']['Catalog']['searchStore']['elements']:
-            if {"path": "freegames"} in item['categories'] and item["price"]["totalPrice"]["discountPrice"] == 0 and item["price"]["totalPrice"]["originalPrice"] != 0 and item['offerType'] == 'BASE_GAME':
+            if {"path": "freegames"} in item['categories'] and item["price"]["totalPrice"]["discountPrice"] == 0 and item["price"]["totalPrice"]["originalPrice"] != 0 and (item['offerType'] == 'BASE_GAME' or item['offerType'] == 'EDITION'):
                 urlSlug = item['catalogNs']['mappings'][0]['pageSlug'] if len(item['catalogNs']['mappings']) > 0 else item['productSlug']
                 result.append({'title': item['title'], 'url': 'https://store.epicgames.com/zh-CN/p/%s' % urlSlug})
         return result
