@@ -1,5 +1,5 @@
 name: astrbot_plugin_epicreminder
 desc: 用于添加 Epic 免费游戏的提醒函数，可被其他定时插件调用，定时提醒功能开发中。
-version: v0.6
+version: v0.7
 author: sffxzzp
 repo: https://github.com/sffxzzp/astrbot_plugin_epicreminder

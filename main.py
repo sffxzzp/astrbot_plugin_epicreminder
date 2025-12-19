@@ -31,7 +31,7 @@ class EpicReminder(Star):
         url = "https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions"
         data = await self.fetch(url)
         for item in data['data']['Catalog']['searchStore']['elements']:
-            if {"path": "freegames"} in item['categories'] and item["price"]["totalPrice"]["discountPrice"] == 0 and item["price"]["totalPrice"]["originalPrice"] != 0 and (item['offerType'] == 'BASE_GAME' or item['offerType'] == 'EDITION'):
+            if {"path": "freegames"} in item['categories'] and item["price"]["totalPrice"]["discountPrice"] == 0 and (item['offerType'] == 'BASE_GAME' or item['offerType'] == 'EDITION' or item['offerType'] == 'OTHERS') and item['productSlug'] != "[]":
                 urlSlug = item['catalogNs']['mappings'][0]['pageSlug'] if len(item['catalogNs']['mappings']) > 0 else item['productSlug']
                 result.append({'title': item['title'], 'url': 'https://store.epicgames.com/zh-CN/p/%s' % urlSlug})
         return result
