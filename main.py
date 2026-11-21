@@ -74,9 +74,11 @@ class EpicReminder(Star):
         """会列出当前免费的 Epic 游戏，地址由 pipedream 先行抓取，返回纯文本格式"""
         gameData = await self.getGames()
         if not gameData:
-            return event.plain_result("无法获取 Epic 免费游戏数据，请稍后再试。")
+            msg = "无法获取 Epic 免费游戏数据，请稍后再试。"
+            return msg if llm else event.plain_result(msg)
         if llm:
-            gameData = "以下是当前免费的 Epic 游戏列表，分为多个平台，请转换为提醒文本发送给用户。不支持 markdown 格式，请输出纯文本格式。\n\n" + gameData
+            gameData = "以下是当前免费的 Epic 游戏列表，分为多个平台，请转换为提醒文本发送给用户。请输出纯文本格式，完全避免使用 markdown 语法。\n\n" + gameData
+            return gameData
         return event.plain_result(gameData)
 
     @filter.llm_tool("epicfree")
