@@ -8,7 +8,7 @@ import asyncio
     "epicreminder",
     "sffxzzp",
     "用于添加 Epic 免费游戏的提醒函数，可被其他定时插件调用，定时提醒功能开发中。",
-    "0.6",
+    "0.7",
 )
 class EpicReminder(Star):
     def __init__(self, context: Context):
@@ -77,7 +77,7 @@ class EpicReminder(Star):
             msg = "无法获取 Epic 免费游戏数据，请稍后再试。"
             return msg if llm else event.plain_result(msg)
         if llm:
-            gameData = "以下是当前免费的 Epic 游戏列表，分为多个平台，请转换为提醒文本发送给用户。请输出纯文本格式，完全避免使用 markdown 语法。\n\n" + gameData
+            gameData = "请将以下 Epic 免费游戏列表整理成一条自然、有趣的中文提醒消息。\n像朋友分享福利一样，加入亲切、活泼的开场白，提醒大家别忘了领取。每次尝试使用不同的表达方式，避免重复和固定模板。\n可以适当使用 Emoji，但尽量使用纯文本，避免 Markdown 格式。\n完整保留游戏名称和链接，不要编造信息。只输出最终提醒内容。\n\n" + gameData
             return gameData
         return event.plain_result(gameData)
 
